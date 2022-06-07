@@ -25,6 +25,7 @@
     // Initialize URL mappings
     try {
         ns.urlMappings = GM_getValue('japp.mappings') ? JSON.parse(GM_getValue('japp.mappings')) : {};
+        Object.keys(ns.urlMappings).filter(key => !key.startsWith('_')).forEach(key => ns.urlMappings[key].host = new URL(key).host);
     } catch (e) {
         ns.urlMappings = {};
     }
@@ -39,7 +40,7 @@
     // Skip the following routines if there is mappings and the current location does not match them. Continue if the current
     // location does match the mapping, or else there are no mappings and we need a toolbar so that a user is able to edit settings
     if (mappingsSpecified
-        && !Object.keys(ns.urlMappings).some(key => location.origin === key)
+        && !ns.getMapping(location.origin)
         && !ns.isLocalhost(location.hostname)
         && !toolbarRequested) {
         return;
@@ -346,7 +347,7 @@
     createFavicon: function() {
         const isLocal = this.getEnvTitle() === this.urlMappings._local.title;
         const isCrx = /\/crx\//i.test(location.pathname);
-        const color = isLocal ? this.urlMappings._local.color : this.urlMappings[location.origin] && this.urlMappings[location.origin].color;
+        const color = isLocal ? this.urlMappings._local.color : this.getMapping(location.origin) && this.getMapping(location.origin).color;
         if (!color || isCrx) {
             return;
         }
@@ -359,7 +360,7 @@
         } else if (isServicePage) {
             faviconContent = this.icons['favicon-service'];
         } else {
-            let customFavicon = this.urlMappings[location.origin] && this.urlMappings[location.origin].icon;
+            let customFavicon = this.getMapping(location.origin) && this.getMapping(location.origin).icon;
             if (customFavicon && !/^<svg/i.test(customFavicon)) {
                 customFavicon = (this.urlMappings._settings && this.urlMappings._settings.icons && this.urlMappings._settings.icons[customFavicon]) || this.icons[customFavicon];
             }
@@ -381,12 +382,25 @@
         document.head.appendChild(newFavicon);
     },
 
+    getMapping: function(src) {
+        if (this.urlMappings[src]) {
+            return this.urlMappings[src];
+        }
+        const host = new URL(src).host;
+        for(const mapping of Object.values(this.urlMappings)) {
+            if (mapping.host === host) {
+                return mapping;
+            }
+        }
+        return undefined;
+    },
+
     getEnvTitle: function() {
         const url = new URL(window.location.href);
         if (this.isLocalhost(url.hostname)) {
             return this.urlMappings._local.title;
         }
-        const mapping = this.urlMappings[url.origin];
+        const mapping = this.getMapping(url.origin);
         if (mapping && mapping.title) {
             return mapping.title;
         }
@@ -395,28 +409,28 @@
 
     getEnvGroup: function() {
         const url = new URL(window.location.href);
-        const mapping = this.urlMappings[url.origin];
+        const mapping = this.getMapping(url.origin);
         return mapping && mapping.group || undefined;
     },
 
     getManagementOrigin: function(usePath) {
         const url = new URL(window.location.href);
-        const mapping = this.urlMappings[url.origin];
+        const mapping = this.getMapping(url.origin);
         if (mapping) {
             let result = mapping.mgmtOrigin || url.origin;
-            const managementOriginMapping = this.urlMappings[result];
+            const managementOriginMapping = this.getMapping(result);
             if (managementOriginMapping
-                && managementOriginMapping['pathTransform']
-                && managementOriginMapping['pathTransform']['function']
+                && managementOriginMapping.pathTransform
+                && managementOriginMapping.pathTransform.function
                 && usePath) {
                 const newUrl = new URL(result);
-                const funcName = managementOriginMapping['pathTransform']['function'];
-                result = newUrl.origin + this[funcName](newUrl.pathname, managementOriginMapping['pathTransform']);
+                const funcName = managementOriginMapping.pathTransform.function;
+                result = newUrl.origin + this[funcName](window.location.pathname, managementOriginMapping.pathTransform);
             }
             return result;
         }
         if (this.isLocalhost(url.hostname)
-            || (/^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) && !this.urlMappings[url.origin])) {
+            || (/^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) && !this.getMapping(url.origin))) {
             return url.origin;
         }
         return '';
@@ -438,7 +452,7 @@
 
     getMappedPath: function(origin) {
         let newUrl = new URL(origin);
-        const mapping = this.urlMappings[origin];
+        const mapping = this.getMapping(origin);
         const shouldTransformPath = !this.isServicePage();
         if (shouldTransformPath
             && mapping
@@ -683,7 +697,7 @@
         };
         tooltip.appendChild(copyButton);
 
-        const isisForeignMgmtOriginManagementOrigin = this.urlMappings[location.origin] && this.urlMappings[location.origin].isForeignMgmtOrigin;
+        const isisForeignMgmtOriginManagementOrigin = this.getMapping(location.origin) && this.getMapping(location.origin).isForeignMgmtOrigin;
         if (!isisForeignMgmtOriginManagementOrigin) {
             tooltip.appendChild(this.createNode('SPAN', null, 'japp-separator'));
 
