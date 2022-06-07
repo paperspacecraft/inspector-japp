@@ -26,10 +26,6 @@
             }
         }, 500);
 
-    } else if (ns.isPopup()) {
-        // Non-prefill popup window flow
-        window.opener.postMessage({ event: 'japp-prefill', src: envSrc }, '*');
-        return;
     }
     if (ns.prefills[envSrc]) {
         // Popup window flow
@@ -59,6 +55,10 @@
             window.opener.postMessage({ event: 'japp-prefill', src: envSrc }, '*');
         }
 
+    } else if (ns.isPopup()) {
+
+        // Non-prefill popup window flow
+        window.opener.postMessage({ event: 'japp-prefill', src: envSrc }, '*');
     }
 
 })({
