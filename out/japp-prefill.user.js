@@ -71,7 +71,7 @@
 
     styles: `
         #japp-toolbar, #japp-tooltip, .japp-dropdown-content {
-          z-index: 1999;
+          z-index: 8999;
         }
         #japp-toolbar, #japp-tooltip, #japp-toolbar ul li {
           font-family: Tahoma, Verdana, sans-serif !important;

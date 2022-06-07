@@ -135,7 +135,7 @@
 
     styles: `
         #japp-toolbar, #japp-tooltip, .japp-dropdown-content {
-          z-index: 1999;
+          z-index: 8999;
         }
         #japp-toolbar, #japp-tooltip, #japp-toolbar ul li {
           font-family: Tahoma, Verdana, sans-serif !important;
@@ -411,7 +411,7 @@
                 && usePath) {
                 const newUrl = new URL(result);
                 const funcName = managementOriginMapping['pathTransform']['function'];
-                result = newUrl.origin + this[funcName](newUrl.pathname, managementOriginMapping);
+                result = newUrl.origin + this[funcName](newUrl.pathname, managementOriginMapping['pathTransform']);
             }
             return result;
         }
@@ -481,7 +481,7 @@
             || /^\/(apps|libs|etc|var|aem)/i.test(value)
             || /\/base\/blueprint\//i.test(value))
             ? value
-            : options['basePath'] + value;
+            : options['basePath'].replace(/\/$/, '') + '/' + value.replace(/^\//, '');
     },
 
     isLocalhost: function(hostname) {
@@ -677,7 +677,7 @@
         copyButton.href='javascript:void(0)';
         copyButton.innerHTML = this.icons.copy;
         copyButton.onclick = () => {
-            const path = new URL(this.getManagementOrigin(true) + copyButton.dataset.path).pathname;
+            const path = new URL(this.getManagementOrigin(true).replace(/\/$/, '') + '/' + copyButton.dataset.path.replace(/^\//, '')).pathname;
             GM_setClipboard(path, 'text');
             alert(`Path\n\n${path}\n\ncopied to the clipboard`);
         };
