@@ -792,19 +792,22 @@
                             .toolbar {display: flex; font-family: Tahoma,Arial,sans-serif; line-height: 60px; border-bottom: 1px Solid #aaa; background-color: #EEE;}
                             .toolbar span {flex-grow: 1; padding: 0 8px; font-size: 14px;}
                             .toolbar button {background: none; border: none; padding: 0 10px; cursor: pointer; font-size: 14px; font-weight: bold;}
+                            .toolbar button:hover {background: #FAFAFA;}
                             textarea {width: 100%; flex-grow: 1; resize: none; border: none; outline: none; font-size: 14px;}
                         </style>
                     </head>
                     <body>
                         <div class="toolbar" style="">
                             <span style="">${title}</span>
-                            <button onclick="window.close()">&#10005;</button>
-                            <button onclick="window.result='ok'; window.close()" style="font-size:18px;">&check;</button>
+                            <button id="cancel">&#10005;</button>
+                            <button id="ok" style="font-size:18px;">&check;</button>
                         </div>
                         <textarea id="settings">${GM_getValue(setting) || ''}</textarea>
                     </body>
                 </html>`);
         popup.document.close();
+        popup.document.querySelector('#cancel').onclick = () => popup.close();
+        popup.document.querySelector('#ok').onclick = () => {popup.window.result='ok'; popup.close();};
         popup.onbeforeunload = () => {
             const settingsJson = popup.document.getElementById('settings').value;
             if (popup.window.result !== 'ok') {
