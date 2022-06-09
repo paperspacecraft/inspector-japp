@@ -648,15 +648,18 @@
         const hasValidMapping = mappingsInitialized && this.getManagementOrigin();
 
         if (hasValidMapping) {
-            const crxButton = this.createNode('A', 'japp-crxde', 'japp-tooltip-button');
-            crxButton.title = 'Open in CRX/DE';
-            crxButton.innerHTML = this.icons.crxde;
-            const crxDeUrl = this.getManagedURL();
-            const crxDeHref = /^\/(?:content|etc|var|home)/.test(crxDeUrl.pathname)
-                ? crxDeUrl.origin + '/crx/de/index.jsp#' + crxDeUrl.pathname.replace(/\.html$/i, '')
-                : crxDeUrl.origin + '/crx/de';
-            crxButton.href = this.convertPathToParameter(crxDeHref);
-            toolbar.insertBefore(crxButton, settingsDropdown);
+            
+            if (!/\/crx\/de/i.test(location.pathname)) {
+                const crxButton = this.createNode('A', 'japp-crxde', 'japp-tooltip-button');
+                crxButton.title = 'Open in CRX/DE';
+                crxButton.innerHTML = this.icons.crxde;
+                const crxDeUrl = this.getManagedURL();
+                const crxDeHref = /^\/(?:content|etc|var|home)/.test(crxDeUrl.pathname)
+                    ? crxDeUrl.origin + '/crx/de/index.jsp#' + crxDeUrl.pathname.replace(/\.html$/i, '')
+                    : crxDeUrl.origin + '/crx/de';
+                crxButton.href = this.convertPathToParameter(crxDeHref);
+                toolbar.insertBefore(crxButton, settingsDropdown);
+            }
 
             const toolsDropdown = this.createNode('DIV', 'japp-tools', ['japp-dropdown', 'japp-toolbar-button']);
             toolsDropdown.title = 'Tools';
