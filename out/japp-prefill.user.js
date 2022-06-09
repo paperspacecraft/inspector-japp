@@ -272,14 +272,6 @@
         }
         `,
 
-    isServicePage: function() {
-        return /\/crx\/|\/system\/console|\/siteadmin|\/useradmin|\/damadmin|\/miscadmin/.test(location.pathname);
-    },
-
-    isPopup: function() {
-        return window.opener && window.opener !== window && /^japp-dialog/.test(window.name);
-    },
-
     createNode: function(tag, id, className) {
         const result = document.createElement(tag);
         if (id) {
@@ -301,6 +293,61 @@
         css.id = 'japp-style';
         css.innerHTML = this.styles;
         document.head.appendChild(css);
+    },
+
+    isServicePage: function() {
+        return /\/crx\/|\/system\/console|\/siteadmin|\/useradmin|\/damadmin|\/miscadmin/.test(location.pathname);
+    },
+
+    isPopup: function() {
+        return window.opener && window.opener !== window && /^japp-dialog/.test(window.name);
+    },
+
+    createBasicToolbar: function() {
+        function applyDrag(element) {
+            let currentPosition = 0;
+            let prevPosition = 0;
+            element.querySelector('.drag-handle').onmousedown = function(e) {
+                e.preventDefault();
+                prevPosition = e.clientX;
+                document.onmouseup = finishDrag;
+                document.onmousemove = doDrag;
+            }
+            function doDrag(e) {
+                e.preventDefault();
+                currentPosition = prevPosition - e.clientX;
+                prevPosition = e.clientX;
+                element.style.left = (element.offsetLeft - currentPosition) + "px";
+            }
+            function finishDrag() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        let toolbar = document.querySelector('#japp-toolbar');
+        if (toolbar) {
+            return toolbar;
+        }
+        toolbar = document.createElement('DIV');
+        toolbar.id = 'japp-toolbar';
+        document.body.appendChild(toolbar);
+        const icon = this.createNode('SPAN', null, ['japp-toolbar-button', 'drag-handle']);
+        icon.innerHTML = this.icons.main;
+        icon.style.opacity = '1';
+        toolbar.appendChild(icon);
+
+        const settingsDropdown = this.createNode('DIV', 'japp-settings', ['japp-dropdown', 'japp-toolbar-button']);
+        settingsDropdown.title = 'Settings';
+        const settingsDropdownIcon = this.createNode('DIV');
+        settingsDropdownIcon.innerHTML = this.icons.settings;
+        settingsDropdown.appendChild(settingsDropdownIcon);
+        const settingsDropdownContent = this.createNode('UL', 'japp-settings-dropdown', 'japp-dropdown-content');
+        settingsDropdown.appendChild(settingsDropdownContent);
+        toolbar.appendChild(settingsDropdown);
+
+        applyDrag(toolbar);
+        return toolbar;
     },
 
     createSettingsDialog: function(setting, title) {
@@ -363,53 +410,6 @@
             y: (screen.height/2) - (height / 2)
         };
         return `popup=yes,width=${width},height=${height},left=${position.x},top=${position.y}`;
-    },
-
-    createBasicToolbar: function() {
-        function applyDrag(element) {
-            let currentPosition = 0;
-            let prevPosition = 0;
-            element.querySelector('.drag-handle').onmousedown = function(e) {
-                e.preventDefault();
-                prevPosition = e.clientX;
-                document.onmouseup = finishDrag;
-                document.onmousemove = doDrag;
-            }
-            function doDrag(e) {
-                e.preventDefault();
-                currentPosition = prevPosition - e.clientX;
-                prevPosition = e.clientX;
-                element.style.left = (element.offsetLeft - currentPosition) + "px";
-            }
-            function finishDrag() {
-                document.onmouseup = null;
-                document.onmousemove = null;
-            }
-        }
-
-        let toolbar = document.querySelector('#japp-toolbar');
-        if (toolbar) {
-            return toolbar;
-        }
-        toolbar = document.createElement('DIV');
-        toolbar.id = 'japp-toolbar';
-        document.body.appendChild(toolbar);
-        const icon = this.createNode('SPAN', null, ['japp-toolbar-button', 'drag-handle']);
-        icon.innerHTML = this.icons.main;
-        icon.style.opacity = '1';
-        toolbar.appendChild(icon);
-
-        const settingsDropdown = this.createNode('DIV', 'japp-settings', ['japp-dropdown', 'japp-toolbar-button']);
-        settingsDropdown.title = 'Settings';
-        const settingsDropdownIcon = this.createNode('DIV');
-        settingsDropdownIcon.innerHTML = this.icons.settings;
-        settingsDropdown.appendChild(settingsDropdownIcon);
-        const settingsDropdownContent = this.createNode('UL', 'japp-settings-dropdown', 'japp-dropdown-content');
-        settingsDropdown.appendChild(settingsDropdownContent);
-        toolbar.appendChild(settingsDropdown);
-
-        applyDrag(toolbar);
-        return toolbar;
     },
 
     appendToToolbar: function() {

@@ -71,19 +71,19 @@
 
     styles: '',
 
-    isServicePage: function() {},
-
-    isPopup: function() {},
-
     createNode: function(tag, id, className) {},
 
     createStyles: function() {},
 
+    isServicePage: function() {},
+
+    isPopup: function() {},
+
+    createBasicToolbar: function() {},
+
     createSettingsDialog: function(setting, title) {},
 
     getDialogWindowFeatures: function() {},
-
-    createBasicToolbar: function() {},
 
     appendToToolbar: function() {
         this.createStyles();

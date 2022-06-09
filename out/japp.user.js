@@ -118,6 +118,10 @@
 
 })({
 
+    /* ---------
+       Constants
+       --------- */
+
     icons: {
         'main': '<svg xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" viewBox="0 0 3435 3303" width="24px" height="24px"><path fill="#e5e5e5" d="M705 947c365 0 651-22 1013-22s648 22 1013 22c-7-80-49-187-75-277-24-81-62-180-95-258C2454 158 2393 0 2202 0c-208 0-374 132-484 132-136 0-218-132-550-132-150 0-344 520-387 670-26 90-68 198-75 277zm88 1233c0-307-50-453 298-604 466-203 1551-110 1551 318 0 136 22 375-49 458-68 79-79 21-135 85-17 19-182 600-741 600-226 0-449-120-579-299-178-246-90-271-215-335-50-26-130-39-130-222zm264-352c0 401-21 418 374 418 34 0 76-31 100-54 94-92 15-145 81-227 51-63 160-63 210 0 52 65 15 36 31 124 46 251 525 196 525 4 0-483 141-374-1211-374-51 0-110 59-110 110zM0 1476c0 74 35 124 72 170 122 152 249 266 456 314v330c-52 4-396 77-396 198 0 192 393 381 506 551-25 107-85 157-110 264h2378c-25-107-85-157-110-264 138-205 811-531 350-681-75-24-159-61-240-68v-330c141-33 235-100 331-175 132-105 374-388-9-499-106-30-226-43-343-53-692-59-1624-68-2314-1-207 20-570 32-570 244z"/></svg>',
         'enable-tooltip': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37373 37373"><path fill-rule="nonzero" fill="#FFF" d="M33369 0H4005C1793 0 1 1793 1 4004v29364c0 2211 1793 4004 4004 4004h20480c1416 0 2774-563 3776-1564l7550-7550c1004-1004 1563-2356 1563-3774V4004c0-2212-1794-4004-4004-4004zM5339 5339h26695v18686h-5339c-1474 0-2670 1196-2670 2670v5339H5339V5339z"/></svg>',
@@ -337,6 +341,27 @@
         }
         `,
 
+    /* -----------
+       Basic utils
+       ----------- */
+
+    createNode: function(tag, id, className) {
+        const result = document.createElement(tag);
+        if (id) {
+            result.id = id;
+        }
+        if (Array.isArray(className)) {
+            result.classList.add(...className);
+        } else if (className) {
+            result.classList.add(className);
+        }
+        return result;
+    },
+
+    /* -------------
+       Basic styling
+       ------------- */
+
     createStyles: function() {
         if (document.head.querySelector('style#japp-style')) {
             return;
@@ -385,17 +410,29 @@
         document.head.appendChild(newFavicon);
     },
 
-    getMapping: function(src) {
-        if (this.urlMappings[src]) {
-            return this.urlMappings[src];
+    /* --------------
+       Identification
+       -------------- */
+
+    isLocalhost: function(hostname) {
+        return /^(local\.|localhost|127\.0\.0\.1)/i.test(hostname || location.hostname)
+    },
+
+    isEditMode: function() {
+        try {
+            return /\/editor.html\/|wcmmode=edit/i.test(window.top.location.href);
+        } catch (e) {
+            // Can catch a CORS exception here
+            return false;
         }
-        const host = new URL(src).host;
-        for(const mapping of Object.values(this.urlMappings)) {
-            if (mapping.host === host) {
-                return mapping;
-            }
-        }
-        return undefined;
+    },
+
+    isServicePage: function() {
+        return /\/crx\/|\/system\/console|\/siteadmin|\/useradmin|\/damadmin|\/miscadmin/.test(location.pathname);
+    },
+
+    isPopup: function() {
+        return window.opener && window.opener !== window && /^japp-dialog/.test(window.name);
     },
 
     getEnvTitle: function() {
@@ -414,6 +451,23 @@
         const url = new URL(window.location.href);
         const mapping = this.getMapping(url.origin);
         return mapping && mapping.group || undefined;
+    },
+
+    /* -----------------
+       Path manipulation
+       ----------------- */
+
+    getMapping: function(src) {
+        if (this.urlMappings[src]) {
+            return this.urlMappings[src];
+        }
+        const host = new URL(src).host;
+        for(const mapping of Object.values(this.urlMappings)) {
+            if (mapping.host === host) {
+                return mapping;
+            }
+        }
+        return undefined;
     },
 
     getPathWithoutEditorPrefix: function(src) {
@@ -509,43 +563,13 @@
             : options['basePath'].replace(/\/$/, '') + '/' + value.replace(/^\//, '');
     },
 
-    isLocalhost: function(hostname) {
-        return /^(local\.|localhost|127\.0\.0\.1)/i.test(hostname || location.hostname)
-    },
-
-    isEditMode: function() {
-        try {
-            return /\/editor.html\/|wcmmode=edit/i.test(window.top.location.href);
-        } catch (e) {
-            // Can catch a CORS exception here
-            return false;
-        }
-    },
-
-    isServicePage: function() {
-        return /\/crx\/|\/system\/console|\/siteadmin|\/useradmin|\/damadmin|\/miscadmin/.test(location.pathname);
-    },
-
-    isPopup: function() {
-        return window.opener && window.opener !== window && /^japp-dialog/.test(window.name);
-    },
-
     encodeURI(value) {
         return encodeURI(value).replace(/%25/g, '%').replace(/:/g, '%3A');
     },
 
-    createNode: function(tag, id, className) {
-        const result = document.createElement(tag);
-        if (id) {
-            result.id = id;
-        }
-        if (Array.isArray(className)) {
-            result.classList.add(...className);
-        } else if (className) {
-            result.classList.add(className);
-        }
-        return result;
-    },
+    /* -----------
+       UI creation
+       ----------- */
 
     createBasicToolbar: function() {
         function applyDrag(element) {
@@ -887,6 +911,10 @@
         };
         return `popup=yes,width=${width},height=${height},left=${position.x},top=${position.y}`;
     },
+
+    /* -------------------
+       Component detection
+       ------------------- */
 
     loadPreviewVersion: function() {
         const url = this.getManagedURL();
