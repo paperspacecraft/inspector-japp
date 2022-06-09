@@ -54,8 +54,8 @@
     mappingsSpecified && ns.createFavicon();
 
     // Now exit without seeking and processing CQ elements if this site is unspecified (because there are no mappings)
-    // or else we're in Edit mode
-    if (!mappingsSpecified || ns.isEditMode()) {
+    // or else we're in Edit mode, or else this is not a user-oriented html page
+    if (!mappingsSpecified || ns.isEditMode() || !window.location.pathname.endsWith('.html')) {
         return;
     }
 
@@ -503,7 +503,7 @@
         return (!value
             || value === '/'
             || value.startsWith(options['basePath'])
-            || /^\/(apps|libs|etc|var|aem|content)/i.test(value)
+            || /^\/(apps|libs|etc|var|aem|content|crx|system)/i.test(value)
             || /\/base\/blueprint\//i.test(value))
             ? value
             : options['basePath'].replace(/\/$/, '') + '/' + value.replace(/^\//, '');
