@@ -416,6 +416,10 @@
         return mapping && mapping.group || undefined;
     },
 
+    getPathWithoutEditorPrefix: function(src) {
+        return src.replace(/\/editor\.html/i, '');
+    },
+
     getManagementOrigin: function(usePath) {
         const url = new URL(window.location.href);
         const mapping = this.getMapping(url.origin);
@@ -428,7 +432,10 @@
                 && usePath) {
                 const newUrl = new URL(result);
                 const funcName = managementOriginMapping.pathTransform.function;
-                result = newUrl.origin + this[funcName](window.location.pathname, managementOriginMapping.pathTransform);
+                result = newUrl.origin
+                    + this[funcName](
+                        this.getPathWithoutEditorPrefix(window.location.pathname),
+                        managementOriginMapping.pathTransform);
             }
             return result;
         }
@@ -442,14 +449,15 @@
     getManagedURL: function() {
         const url = new URL(window.location.href);
         const managementOrigin = this.getManagementOrigin(true);
-        if (managementOrigin) {
+        if (managementOrigin && managementOrigin !== (window.location.origin + this.getPathWithoutEditorPrefix(window.location.pathname))) {
             const newOriginUrl = new URL(managementOrigin);
             url.host = newOriginUrl.host;
             url.protocol = newOriginUrl.protocol;
             if (newOriginUrl.pathname && newOriginUrl.pathname !== '/') {
-                url.pathname = newOriginUrl.pathname + url.pathname;
+                url.pathname = newOriginUrl.pathname + this.getPathWithoutEditorPrefix(url.pathname);
             }
         }
+        url.pathname = this.getPathWithoutEditorPrefix(url.pathname);
         return url;
     },
 
@@ -495,7 +503,7 @@
         return (!value
             || value === '/'
             || value.startsWith(options['basePath'])
-            || /^\/(apps|libs|etc|var|aem)/i.test(value)
+            || /^\/(apps|libs|etc|var|aem|content)/i.test(value)
             || /\/base\/blueprint\//i.test(value))
             ? value
             : options['basePath'].replace(/\/$/, '') + '/' + value.replace(/^\//, '');
@@ -615,7 +623,7 @@
 
         const hasValidMapping = mappingsInitialized && this.getManagementOrigin();
 
-        if (!this.isEditMode() && hasValidMapping) {
+        if (hasValidMapping) {
             const crxButton = this.createNode('A', 'japp-crxde', 'japp-tooltip-button');
             crxButton.title = 'Open in CRX/DE';
             crxButton.innerHTML = this.icons.crxde;
@@ -625,9 +633,7 @@
                 : crxDeUrl.origin + '/crx/de';
             crxButton.href = this.convertPathToParameter(crxDeHref);
             toolbar.insertBefore(crxButton, settingsDropdown);
-        }
 
-        if (hasValidMapping) {
             const toolsDropdown = this.createNode('DIV', 'japp-tools', ['japp-dropdown', 'japp-toolbar-button']);
             toolsDropdown.title = 'Tools';
             const toolsDropdownIcon = this.createNode('DIV');
