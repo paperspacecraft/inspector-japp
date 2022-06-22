@@ -2,7 +2,7 @@
 // @name         Inspector Japp
 // @description  Simplifies inspecting and navigating AEM pages
 // @namespace    https://paperspacecraft.com/
-// @version      0.1.3
+// @version      0.1.4
 // @author       Stephen Velwetowl
 // @icon         data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill-rule%3D%22evenodd%22%20viewBox%3D%220%200%203435%203303%22%20width%3D%2224px%22%20height%3D%2224px%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M705%20947c365%200%20651-22%201013-22s648%2022%201013%2022c-7-80-49-187-75-277-24-81-62-180-95-258C2454%20158%202393%200%202202%200c-208%200-374%20132-484%20132-136%200-218-132-550-132-150%200-344%20520-387%20670-26%2090-68%20198-75%20277zm88%201233c0-307-50-453%20298-604%20466-203%201551-110%201551%20318%200%20136%2022%20375-49%20458-68%2079-79%2021-135%2085-17%2019-182%20600-741%20600-226%200-449-120-579-299-178-246-90-271-215-335-50-26-130-39-130-222zm264-352c0%20401-21%20418%20374%20418%2034%200%2076-31%20100-54%2094-92%2015-145%2081-227%2051-63%20160-63%20210%200%2052%2065%2015%2036%2031%20124%2046%20251%20525%20196%20525%204%200-483%20141-374-1211-374-51%200-110%2059-110%20110zM0%201476c0%2074%2035%20124%2072%20170%20122%20152%20249%20266%20456%20314v330c-52%204-396%2077-396%20198%200%20192%20393%20381%20506%20551-25%20107-85%20157-110%20264h2378c-25-107-85-157-110-264%20138-205%20811-531%20350-681-75-24-159-61-240-68v-330c141-33%20235-100%20331-175%20132-105%20374-388-9-499-106-30-226-43-343-53-692-59-1624-68-2314-1-207%2020-570%2032-570%20244z%22%2F%3E%3C%2Fsvg%3E
 
@@ -55,7 +55,9 @@
 
     // Now exit without seeking and processing CQ elements if this site is unspecified (because there are no mappings)
     // or else we're in Edit mode, or else this is not a user-oriented html page
-    if (!mappingsSpecified || ns.isEditMode() || !window.location.pathname.endsWith('.html')) {
+    if (!mappingsSpecified
+        || ns.isEditMode()
+        || (!window.location.pathname.endsWith('.html') && !window.location.pathname.includes('.html/'))) {
         return;
     }
 
@@ -432,7 +434,9 @@
     },
 
     isPopup: function() {
-        return window.opener && window.opener !== window && /^japp-dialog/.test(window.name);
+        return window.opener
+            && window.opener !== window
+            && (/^japp-dialog/.test(window.name) || location.href.includes('crxbflow'));
     },
 
     getEnvTitle: function() {
@@ -457,11 +461,11 @@
        Path manipulation
        ----------------- */
 
-    getMapping: function(src) {
-        if (this.urlMappings[src]) {
-            return this.urlMappings[src];
+    getMapping: function(value) {
+        if (this.urlMappings[value]) {
+            return this.urlMappings[value];
         }
-        const host = new URL(src).host;
+        const host = new URL(value).host;
         for(const mapping of Object.values(this.urlMappings)) {
             if (mapping.host === host) {
                 return mapping;
@@ -471,7 +475,7 @@
     },
 
     getPathWithoutEditorPrefix: function(src) {
-        return src.replace(/\/editor\.html/i, '');
+        return src && src.replace(/\/editor\.html/i, '');
     },
 
     getManagementOrigin: function(usePath) {
@@ -500,43 +504,53 @@
         return '';
     },
 
-    getManagedURL: function() {
-        const url = new URL(window.location.href);
-        const managementOrigin = this.getManagementOrigin(true);
-        if (managementOrigin && managementOrigin !== (window.location.origin + this.getPathWithoutEditorPrefix(window.location.pathname))) {
-            const newOriginUrl = new URL(managementOrigin);
-            url.host = newOriginUrl.host;
-            url.protocol = newOriginUrl.protocol;
-            if (newOriginUrl.pathname && newOriginUrl.pathname !== '/') {
-                url.pathname = newOriginUrl.pathname + this.getPathWithoutEditorPrefix(url.pathname);
-            }
-        }
-        url.pathname = this.getPathWithoutEditorPrefix(url.pathname);
-        return url;
-    },
+    getMappedUrl: function(value, options) {
+        const src = (value || window.location.href).toString();
+        let srcUrl = new URL(src);
 
-    getMappedPath: function(origin) {
-        let newUrl = new URL(origin);
-        const mapping = this.getMapping(origin);
+        const useMgmtOrigin = options && options.useMgmtOrigin;
+        const targetPath = (options && options.src && options.src.pathname) || srcUrl.pathname;
+        const targetSearch = (options && options.src && options.src.search) || srcUrl.search;
+        const targetHash = (options && options.src && options.src.hash) || srcUrl.hash;
+        let targetOrigin;
+
+        const additionalUrlTransform = options && options.urlTransform;
+        const suppressBuiltInUrlTransform = options && options.suppressBuiltInUrlTransform;
+
+        let mapping = this.getMapping(srcUrl.origin);
+        if (useMgmtOrigin && mapping && mapping.mgmtOrigin) {
+            targetOrigin = mapping.mgmtOrigin;
+            mapping = this.getMapping(targetOrigin);
+        }
+
+        if (!mapping && (!src || this.isLocalhost(srcUrl.hostname) || (/^\d+\.\d+\.\d+\.\d+$/.test(srcUrl.hostname)))) {
+            return srcUrl;
+        }
+
+        let newUrl = targetOrigin ? new URL(src.replace(srcUrl.origin, targetOrigin)) : new URL(src);
         const shouldTransformPath = !this.isServicePage();
         if (shouldTransformPath
             && mapping
             && mapping.pathTransform
             && mapping.pathTransform['function']) {
 
-            newUrl.pathname = this[mapping.pathTransform['function']](location.pathname, mapping.pathTransform);
+            newUrl.pathname = this[mapping.pathTransform['function']](targetPath, mapping.pathTransform);
         } else {
-            newUrl.pathname = location.pathname;
+            newUrl.pathname = targetPath;
         }
-        newUrl.search = location.search;
-        newUrl.hash = location.hash;
+        newUrl.search = targetSearch;
+        newUrl.hash = targetHash;
+        if (additionalUrlTransform) {
+            newUrl = additionalUrlTransform(newUrl);
+        }
         if (mapping
             && mapping.urlTransform
-            && mapping.urlTransform['function']) {
+            && mapping.urlTransform['function']
+            && !suppressBuiltInUrlTransform) {
 
             newUrl = this[mapping.urlTransform['function']](newUrl, mapping.urlTransform);
         }
-        return newUrl.toString();
+        return newUrl;
     },
 
     convertPathToParameter: function(value, options) {
@@ -554,13 +568,14 @@
     },
 
     prependPathIfNeeded: function(value, options) {
-        return (!value
-            || value === '/'
-            || value.startsWith(options['basePath'])
-            || /^\/(apps|libs|etc|var|aem|content|crx|system)/i.test(value)
-            || /\/base\/blueprint\//i.test(value))
-            ? value
-            : options['basePath'].replace(/\/$/, '') + '/' + value.replace(/^\//, '');
+        const cleanPath = this.getPathWithoutEditorPrefix(value);
+        return (!cleanPath
+            || cleanPath === '/'
+            || cleanPath.startsWith(options['basePath'])
+            || /^\/(apps|libs|etc|var|aem|content|crx|system)/i.test(cleanPath)
+            || /\/base\/blueprint\//i.test(cleanPath))
+            ? cleanPath
+            : options['basePath'].replace(/\/$/, '') + '/' + cleanPath.replace(/^\//, '');
     },
 
     encodeURI(value) {
@@ -637,7 +652,7 @@
                     ? `<span class="japp-bold">${this.urlMappings[key].title}</span>&nbsp;&nbsp;<small>${key}</small>`
                     : `<b>${this.urlMappings[key].title}</b>`;
                 const optionColor = this.urlMappings[key].color || '#CCC';
-                const option = `<li><a href="${this.getMappedPath(key)}"><span class="swatch" data-origin="${key}" data-color="${optionColor}" style="background-color: ${optionColor}"></span>&nbsp;&nbsp;${optionTitle}</a></li>`;
+                const option = `<li><a href="${this.getMappedUrl(key, {src: window.location}).toString()}"><span class="swatch" data-origin="${key}" data-color="${optionColor}" style="background-color: ${optionColor}"></span>&nbsp;&nbsp;${optionTitle}</a></li>`;
                 const separator = this.urlMappings[key]['separator'] ? '<li class="japp-separator-v"></li>' : '';
                 options += separator + option;
             }
@@ -648,16 +663,25 @@
         const hasValidMapping = mappingsInitialized && this.getManagementOrigin();
 
         if (hasValidMapping) {
-            
+
             if (!/\/crx\/de/i.test(location.pathname)) {
                 const crxButton = this.createNode('A', 'japp-crxde', 'japp-tooltip-button');
                 crxButton.title = 'Open in CRX/DE';
                 crxButton.innerHTML = this.icons.crxde;
-                const crxDeUrl = this.getManagedURL();
-                const crxDeHref = /^\/(?:content|etc|var|home)/.test(crxDeUrl.pathname)
-                    ? crxDeUrl.origin + '/crx/de/index.jsp#' + crxDeUrl.pathname.replace(/\.html$/i, '')
-                    : crxDeUrl.origin + '/crx/de';
-                crxButton.href = this.convertPathToParameter(crxDeHref);
+                const crxDeUrl = this.getMappedUrl('', {
+                    useMgmtOrigin: true,
+                    urlTransform: url => {
+                        if (/^\/(?:content|etc|var|home)/i.test(url.pathname)) {
+                            url.hash = url.pathname.replace(/\.html$/i, '');
+                            url.pathname = '/crx/de/';
+                        } else {
+                            url.pathname = '/crx/de';
+                        }
+                        url.search = '';
+                        return url;
+                    }
+                });
+                crxButton.href = crxDeUrl.toString();
                 toolbar.insertBefore(crxButton, settingsDropdown);
             }
 
@@ -683,8 +707,14 @@
             editModeButton.title = "Switch to Edit mode";
             editModeButton.innerHTML = this.icons.edit;
             editModeButton.style.height = '24px';
-            const editModeUrl = this.getManagedURL();
-            editModeUrl.pathname = '/editor.html' + editModeUrl.pathname;
+            const editModeUrl = this.getMappedUrl('', {
+                useMgmtOrigin: true,
+                urlTransform: url => {
+                    url.pathname ='/editor.html' + url.pathname;
+                    url.searchParams.set('wcmmode', 'edit');
+                    return url;
+                }
+            });
             editModeUrl.searchParams.set('wcmmode', 'edit');
             editModeButton.href = editModeUrl.href;
             toolbar.insertBefore(editModeButton, settingsDropdown);
@@ -920,7 +950,7 @@
        ------------------- */
 
     loadPreviewVersion: function() {
-        const url = this.getManagedURL();
+        const url = this.getMappedUrl('', {useMgmtOrigin: true, suppressBuiltInUrlTransform: true});
         url.searchParams.set('wcmmode', 'preview');
         return new Promise(resolve => {
             GM_xmlhttpRequest({
